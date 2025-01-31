@@ -66,5 +66,3 @@ def leer_i90_dia_02(fichero):
 
 fichero = './ficherosi90/I90DIA_20241102.xls'
 diarios, horarios = leer_i90_dia_02(fichero)
-print(horarios)
-print(diarios)
