@@ -66,21 +66,21 @@ def eliminar_zips(ruta):
 
 
 
-# inicio = dt.datetime(2020, 1, 1)
-# fin = dt.datetime(2025, 1, 1)
-#
-# errores = ""
-# fecha_actual = inicio
-# while fecha_actual <= fin:
-#     time.sleep(2)
-#     try:
-#         descargari90(fecha_actual)
-#         extraer_zips('./ficherosi90')
-#         eliminar_zips('./ficherosi90')
-#     except:
-#         errores = errores + "\nerror en: " + fecha_actual.strftime("%Y-%m-%d")
-#
-#     fecha_actual += dt.timedelta(days=1)
-#
-# print(errores)
+inicio = dt.datetime(2015, 1, 1)
+fin = dt.datetime(2019, 12, 31)
+
+errores = ""
+fecha_actual = inicio
+while fecha_actual <= fin:
+    time.sleep(2)
+    try:
+        descargari90(fecha_actual)
+        extraer_zips('./ficherosi90')
+        eliminar_zips('./ficherosi90')
+    except:
+        errores = errores + "\nerror en: " + fecha_actual.strftime("%Y-%m-%d")
+
+    fecha_actual += dt.timedelta(days=1)
+
+print(errores)
 
