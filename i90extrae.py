@@ -91,7 +91,7 @@ def leer_i90_dia(fichero, hoja):
     # creo el dataframe de datos diarios
     fecha = fecha.strftime('%Y%m%d')
     datos_diarios = datos.drop(columns=['valor', 'fechahora', 'periodo']).drop_duplicates()
-    datos_diarios = datos_diarios.reset_index()
+    datos_diarios = datos_diarios.reset_index().drop('index', axis=1)
     datos_diarios['id'] = fecha + str(hoja) + datos_diarios.index.astype(str)
 
     # creo el dataframe de datos por periodo
@@ -104,11 +104,10 @@ def leer_i90_dia(fichero, hoja):
 
 
 # TODO insertar en base de datos
-
-fichero = './ficherosi90/I90DIA_20150101.xls'
-datos_diarios, datos_periodo = leer_i90_dia(fichero, 32)
 pd.set_option('display.max_columns', None)
-print(datos_periodo)
+fichero = './ficherosi90/I90DIA_20150101.xls'
+datos_diarios, datos_periodo = leer_i90_dia(fichero, 17)
+print(datos_diarios)
 
 # TODO Problema decompatibilidad antiguo nuevo en el 22, 23, 24, 25, 29 -> Al eliminarse los intras 4-7 quedan sin datos
 # TODO Problema decompatibilidad antiguo nuevo en el 13, 14 -> Parece que no hay divisibilidad en el antiguo
