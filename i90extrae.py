@@ -1,4 +1,6 @@
 import pandas as pd
+import numpy as np
+from pandas import to_numeric
 
 
 def get_header(hoja):
@@ -45,6 +47,74 @@ def get_index_vars(hoja):
     return relacion[hoja]
 
 
+def parsear_hora(hora_str):
+    if hora_str[-1].lower() == 'a':
+        hora_parseada = to_numeric(hora_str[:-1].split('-')[0])
+    elif hora_str[-1].lower() == 'b':
+        hora_parseada = to_numeric(hora_str[:-1].split('-')[1])
+    else:
+        hora_parseada = to_numeric(hora_str.split('-')[0])
+        hora_parseada = hora_parseada if hora_parseada < 2 else hora_parseada + 1
+
+    return hora_parseada
+
+
+def _transformar_periodos_a_fechahora(datos):
+    """
+    """
+    max_periodo = datos['periodo'].astype(str).str.extract('^(\d+)').astype(int).max()[0]
+    pd.set_option('display.max_rows', None)
+    pd.set_option('display.max_columns', None)
+    pd.set_option('display.width', None)
+    pd.set_option('display.max_colwidth', None)
+
+    if max_periodo == 100:
+        datos['periodo'] = datos['periodo'].astype(str).astype(int)
+        datos['fechahora'] = datos['fecha'] + pd.to_timedelta((datos['periodo'] - 1) * 900, unit='s')
+        condicion_dst = datos['periodo'] > 12
+        datos['fechahora'] = np.where(
+            condicion_dst,
+            datos['fechahora'].dt.tz_localize('Europe/Madrid', ambiguous=False).dt.tz_convert('UTC') - pd.to_timedelta(3600, unit='s'),
+            datos['fechahora'].dt.tz_localize('Europe/Madrid', ambiguous=True).dt.tz_convert('UTC'))
+
+    elif max_periodo == 96:
+        datos['periodo'] = datos['periodo'].astype(str).astype(int)
+        datos['fechahora'] = ((datos['fecha'] + pd.to_timedelta((datos['periodo'] - 1) * 900, unit='s'))
+                              .dt.tz_localize('Europe/Madrid').dt.tz_convert('UTC'))
+
+    elif max_periodo == 92:
+        datos['periodo'] = datos['periodo'].astype(str).astype(int)
+        datos['fechahora'] = datos['fecha'] + pd.to_timedelta((datos['periodo'] - 1) * 900, unit='s')
+        condicion_dst = datos['periodo'] > 8
+        datos['fechahora'] = np.where(
+            condicion_dst,
+            datos['fechahora'].dt.tz_localize('Europe/Madrid').dt.tz_convert('UTC') + pd.to_timedelta(3600, unit='s'),
+            datos['fechahora'].dt.tz_localize('Europe/Madrid').dt.tz_convert('UTC'))
+
+    elif max_periodo == 23:
+        n_periodos = len(datos.groupby('periodo').size().reset_index(name='Cantidad'))
+        if n_periodos > 23:
+            datos['hora_parseada'] = datos['periodo'].apply(parsear_hora).astype(int)
+            datos['fechahora'] = datos['fecha'] + pd.to_timedelta(datos['hora_parseada'] * 3600, unit='s')
+            condicion_dst = datos['hora_parseada'] > 2
+            datos['fechahora'] = np.where(
+                condicion_dst,
+                datos['fechahora'].dt.tz_localize('Europe/Madrid', ambiguous=False).dt.tz_convert(
+                    'UTC') - pd.to_timedelta(3600, unit='s'),
+                datos['fechahora'].dt.tz_localize('Europe/Madrid', ambiguous=True).dt.tz_convert('UTC'))
+        else:
+            datos['periodo'] = datos['periodo'].astype(str)
+            datos['periodo'] = datos['periodo'].str.extract('^(\d+)').astype(int)
+            datos['fechahora'] = datos['fecha'] + pd.to_timedelta(datos['periodo'] * 3600, unit='s')
+            datos['fechahora'] = ((datos['fecha'] + pd.to_timedelta(datos['periodo'] * 3600, unit='s'))
+                                  .dt.tz_localize('Europe/Madrid').dt.tz_convert('UTC'))
+
+    else:
+        print("ERROR EN NUMERO DE PERIODOS")
+
+    return datos
+
+
 def leer_i90_dia(fichero, hoja):
     # Leemos la hoja del fichero i90
     datos = pd.read_excel(fichero, sheet_name=hoja, header=get_header(hoja))
@@ -76,17 +146,10 @@ def leer_i90_dia(fichero, hoja):
     fecha = pd.read_excel(fichero).iloc[4, 0]
     datos['fecha'] = fecha
 
-    # Tratamos los datos: convertimos la hora en fechahora. TODO: falta manejar la hora repetida de otoño
-    datos['periodo'] = datos['periodo'].astype(str)
-    datos['periodo'] = datos['periodo'].str.extract('^(\d+)')
-    datos['periodo'] = pd.to_numeric(datos['periodo'], errors='coerce')
+    # Tratamos los datos: convertimos la hora en fechahora.
+    datos = _transformar_periodos_a_fechahora(datos)
 
-    max_periodo = datos['periodo'].max()
-    es_cuarto_de_hora = max_periodo <= 24 if pd.notna(max_periodo) else False
-    datos['fechahora'] = fecha + pd.to_timedelta(datos['periodo'] * 3600, unit='s') \
-        if es_cuarto_de_hora else fecha + pd.to_timedelta((datos['periodo']-1) * 900, unit='s')
-
-    # TODO: tratamiento de hojas con solo datos diarios
+    # TODO: tratamiento de hojas con solo datos diarios:
 
     # creo el dataframe de datos diarios
     fecha = fecha.strftime('%Y%m%d')
@@ -96,18 +159,22 @@ def leer_i90_dia(fichero, hoja):
 
     # creo el dataframe de datos por periodo
     datos = datos.drop(columns=['fecha', 'periodo'])
-    datos_diarios = datos_diarios.drop('fecha', axis=1)
-    datos_periodo = (pd.merge(datos_diarios, datos, on=indice, how="left").
+    datos_periodo = (pd.merge(datos_diarios.drop('fecha', axis=1), datos, on=indice, how="left").
                      drop(columns=indice))
 
     return datos_diarios, datos_periodo
 
 
+
+
 # TODO insertar en base de datos
 pd.set_option('display.max_columns', None)
-fichero = './ficherosi90/I90DIA_20150101.xls'
-datos_diarios, datos_periodo = leer_i90_dia(fichero, 17)
+fichero = './ficherosi90/I90DIA_20241028.xls'
+datos_diarios, datos_periodo = leer_i90_dia(fichero, 1)
 print(datos_diarios)
+print(datos_periodo)
 
-# TODO Problema decompatibilidad antiguo nuevo en el 22, 23, 24, 25, 29 -> Al eliminarse los intras 4-7 quedan sin datos
-# TODO Problema decompatibilidad antiguo nuevo en el 13, 14 -> Parece que no hay divisibilidad en el antiguo
+# TODO Problema de compatibilidad antiguo nuevo en el 22, 23, 24, 25, 29 -> Al eliminarse los intras 4-7 quedan sin datos
+
+
+
