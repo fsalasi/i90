@@ -7,7 +7,7 @@ def __get_header(hoja):
     relacion = {
         1: 3, 2:3, 3:2, 5:2, 6:2, 7:2, 8:2, 9:2, 10:2, 11:2, 12:2, 13:2, 14:2, 15:2, 16:0, 17:2, 18:1,
         19:3, 20:3, 21:3, 22:3, 23:3, 24:3, 25:3, 26:3, 27:3, 28:2, 29:1, 30:2, 32:2, 33:1, 34:2,35:2, 36:3
-    }
+    } #TODO adaptar a casos
     return relacion[hoja]
 
 
@@ -16,6 +16,7 @@ def __get_index_h(hoja):
         1: ['Unidad de Programación', 'Tipo Oferta'],
         2: ['Unidad de Programación', 'Tipo Oferta'],
         3: ['Unidad de Programación', 'Redespacho', 'Sentido', 'Nm Oferta asignada', 'Tipo Oferta', 'Tipo cálculo', 'Tipo Restricción'],
+        4: [], #TODO definir
         5: ['Unidad de Programación', 'Sentido', 'Nm Oferta asignada', 'Tipo Oferta'],
         6: ['Unidad de Programación', 'Sesión', 'Redespacho', 'Sentido', 'Nm Oferta asignada', 'Tipo Oferta'],
         7: ['Unidad de Programación', 'Redespacho', 'Sentido', 'Tipo Oferta'],
@@ -25,7 +26,7 @@ def __get_index_h(hoja):
         11: ['Redespacho', 'Tipo'],
         12: ['Unidad de Programación'],
         13: ['Sentido', 'Unidad de Programación', 'Bloque', 'Nº Oferta', 'Tipo Oferta', 'Divisibilidad', 'Indicadores'],
-        14: ['Sentido', 'Unidad de Programación', 'Bloque', 'Tipo Oferta', 'Divisibilidad', 'Indicadores'],
+        14: ['Sentido', 'Unidad de Programación', 'Bloque', 'Tipo Oferta', 'Divisibilidad', 'Indicadores'], #TODO adaptar a los casos
         15: ['Sentido', 'Unidad de Programación', 'Bloque', 'Tipo Oferta', 'Indicadores'],
         16: ['Unidad Fisica'],
         17: ['Sentido', 'Unidad de Programación', 'Bloque', 'Tipo Oferta', 'Precedencia', 'Indicadores'],
@@ -40,8 +41,9 @@ def __get_index_h(hoja):
         26: ['Unidad de Programación', 'Tipo Oferta', 'Tipo Transacción'],
         27: ['Unidad de Programación', 'Tipo Oferta', 'Nº contrato'],
         28: ['Unidad de Programación', 'Sentido', 'Nm Oferta asignada', 'Tipo Oferta', 'Origen'],
-        29: ['Unidad de Programación'],
-        30: ['Redespacho', 'Tipo Redespacho', 'Sentido', 'Tipo QH', 'Indicadores'],
+        29: ['Unidad de Programación'], #TODO adaptar a los casos
+        30: ['Redespacho', 'Tipo Redespacho', 'Sentido', 'Tipo QH', 'Indicadores'], #TODO adaptar a los casos
+        31: [], #TODO definir
         32: ['Sentido', 'Unidad de Programación', 'Bloque', 'Tipo Oferta', 'Indicadores'],
         33: ['Unidad de Programación'],
         34: ['Unidad de Programación', 'Sentido', 'Tipo Restricción'],
@@ -63,7 +65,7 @@ def __get_index_d(hoja):
         8: ['Unidad de Programación'],
         9: ['Unidad de Programación'],
         10: ['Unidad de Programación'],
-        11: [],
+        11: [], #TODO definir
         12: ['Unidad de Programación'],
         13: ['Unidad de Programación'],
         14: ['Unidad de Programación'],
@@ -82,7 +84,7 @@ def __get_index_d(hoja):
         27: ['Unidad de Programación'],
         28: ['Unidad de Programación'],
         29: ['Unidad de Programación'],
-        30: [],
+        30: [], #TODO definir
         32: ['Unidad de Programación'],
         33: ['Unidad de Programación'],
         34: ['Unidad de Programación'],
@@ -159,20 +161,14 @@ def __transformar_periodos_a_fechahora(datos):
     return datos
 
 
-def leer_i90_dia(fichero, hoja):
-    # Leemos la hoja del fichero i90
-    datos = pd.read_excel(fichero, sheet_name=hoja, header=__get_header(hoja))
-
+def __reajustar_columnas(datos, hoja, indiceh):
     # Eliminamos las columnas que no sirven
     columnas_a_eliminar = ['Hora', 'Cuarto de Hora del dia', 'Total', 'Total MW',
                            'Total MWh', 'PMP €/MWh', 'Precio Marginal Cuartohorario €/MWh']
     datos = datos.drop(columns=columnas_a_eliminar, errors='ignore')
 
-    # Rescatamos el indice
-    indiced = __get_index_d(hoja)
-    indiceh = __get_index_h(hoja)
-
-    if hoja in [13, 14, 15, 17, 32]:    # Reajustamos las columnas dobles cuando se dan
+    # Reajustamos las columnas dobles cuando se dan
+    if hoja in [13, 14, 15, 17, 32]:
         datos = datos.rename(columns={'MW': 'MW.0', '€/MW': '€/MW.0', 'MWh': 'MWh.0', '€/MWh': '€/MWh.0'})
         melted_df = pd.melt(datos, id_vars=indiceh, var_name='Grupo_y_Periodo', value_name='Valor')
         melted_df[['Grupo', 'Periodo']] = melted_df['Grupo_y_Periodo'].str.split('.', expand=True)
@@ -184,29 +180,50 @@ def leer_i90_dia(fichero, hoja):
         indiceh = (indiceh + ['Grupo'])
         datos = melted_df.pivot(index=indiceh, columns='Periodo', values='Valor').reset_index()
 
-    if hoja in [30]:    # Reajustamos la hoja 30 que tiene el encabezado raro
+    # Reajustamos la hoja 30 que tiene el encabezado raro
+    if hoja in [30]:
         periodos_hoja_30 = pd.read_excel(fichero, sheet_name=30, header=1).columns.tolist()[6:]
         datos.columns = list(datos.columns[:5]) + periodos_hoja_30
 
-    # Añadimos la fecha
-    fecha = pd.read_excel(fichero).iloc[4, 0]
-    datos['fecha'] = fecha
+    return datos
 
+
+def __reajustar_filas(datos, hoja, indiceh):
     if hoja not in [16, 18, 29, 33]:  # Hojas con datos horarios
         datos = datos.melt(id_vars=indiceh + ['fecha'], var_name='periodo', value_name='valor') # Cambiamos las columnas en filas
         datos = datos.dropna(axis=0, subset=['valor']) # Eliminamos las filas con NAN
         datos = __transformar_periodos_a_fechahora(datos) # Convertimos la hora en fechahora.
-        datos_diarios = datos.drop(columns=['valor', 'fechahora', 'periodo']).drop_duplicates()
-        datos['fecha'] = datos['fechahora'].dt.date
+
+    return datos
+
+
+def __formatear_datos_diarios(datos, hoja, fecha, indiced):
+    if hoja not in [16, 18, 29, 33]:  # Hojas con datos horarios
+        datosd = datos.drop(columns=['valor', 'fechahora', 'periodo']).drop_duplicates()
     else:
-        datos_diarios = datos.drop_duplicates()
+        datosd = datos.drop_duplicates()
 
     # Creo el id de cada dato diario
     fecha = fecha.strftime('%Y%m%d')
-    datos_diarios = datos_diarios.reset_index().drop('index', axis=1)
-    datos_diarios['id'] = fecha + str(hoja) + datos_diarios.index.astype(str)
+    datosd = datosd.reset_index().drop('index', axis=1)
+    datosd['id'] = fecha + str(hoja) + datosd.index.astype(str)
 
-    # creo el dataframe de datos por periodo
+    # Ajusto el formato de los datos diarios
+    if hoja not in [12]:
+        datosd = datosd.melt(id_vars=indiced + ['fecha', 'id'], var_name='parametro', value_name='valor') # Cambiamos las columnas en filas
+    else:
+        datosd['parametro'] = ""
+        datosd['valor'] = ""
+    datosd = datosd.dropna(axis=0, subset=['valor']) # Eliminamos las filas con NAN
+    datosd = datosd.rename(
+        columns={'Unidad de Programación': 'upuf', 'Unidad Física': 'upuf', 'Unidad Fisica': 'upuf'})
+    if hoja in [11, 30]: #añado la up vacia en las hojas que no tienen up
+        datosd['upuf'] = ""
+
+    return datosd
+
+
+def __formatear_datos_periodo(datos, datos_diarios, hoja, indiceh):
     if hoja not in [16, 18, 29, 33]:  # Hojas con datos horarios
         datos = datos.drop(columns=['fecha', 'periodo'])
         datos_periodo = (pd.merge(datos_diarios.drop('fecha', axis=1), datos, on=indiceh, how="left").
@@ -214,24 +231,37 @@ def leer_i90_dia(fichero, hoja):
     else:
         datos_periodo = ""
 
-    # Ajusto el formato de los datos diarios
-    if hoja not in [12]:
-        datos_diarios = datos_diarios.melt(id_vars=indiced + ['fecha', 'id'], var_name='parametro', value_name='valor') # Cambiamos las columnas en filas
-    else:
-        datos_diarios['parametro'] = ""
-        datos_diarios['valor'] = ""
-    datos_diarios = datos_diarios.dropna(axis=0, subset=['valor']) # Eliminamos las filas con NAN
-    datos_diarios = datos_diarios.rename(
-        columns={'Unidad de Programación': 'upuf', 'Unidad Física': 'upuf', 'Unidad Fisica': 'upuf'})
-    if hoja in [11, 30]: #añado la up vacia en las hojas que no tienen up
-        datos_diarios['upuf'] = ""
+    return datos_periodo
+
+
+def leer_i90_dia(fichero, hoja):
+    # Leemos la hoja del fichero i90
+    datos = pd.read_excel(fichero, sheet_name=hoja, header=__get_header(hoja))
+
+    # Rescatamos el indice
+    indiced = __get_index_d(hoja)
+    indiceh = __get_index_h(hoja)
+
+    # Añadimos la fecha
+    fecha = pd.read_excel(fichero).iloc[4, 0]
+    datos['fecha'] = fecha
+
+    # Reajustamos las columnas necesarias
+    datos = __reajustar_columnas(datos, hoja, indiceh)
+
+    # Reajustamos las filas necesarias
+    datos = __reajustar_filas(datos, hoja, indiceh)
+
+    # Creamos los datos diarios
+    datos_diarios = __formatear_datos_diarios(datos, hoja, fecha, indiced)
+
+    # Creo el dataframe de datos por periodo
+    datos_periodo = __formatear_datos_periodo(datos, datos_diarios, hoja, indiceh)
 
     return datos_diarios, datos_periodo
 
 
-
-
-# TODO insertar en base de datos
+#  TODO insertar en ficheros parquet
 # pd.set_option('display.max_rows', None)    # Todas las filas
 pd.set_option('display.max_columns', None) # Todas las columnas
 # pd.set_option('display.width', None)       # Ajustar ancho automáticamente
@@ -242,8 +272,15 @@ datos_diarios, datos_periodo = leer_i90_dia(fichero, 36)
 # print(datos_diarios)
 print(datos_periodo)
 
+# TODO Problemas de compatibilidad
+# Problema de compatibilidad antiguo nuevo en el 4 -> Antes estava las restricciones del itnra, ahora reservada
+# Problema de compatibilidad antiguo nuevo en el 11 -> Ahora precios de RR, antes reservada
+# Problema de compatibilidad antiguo nuevo en el 14 -> Antes habia sesion, numero de oferta, rampa maxima subir, rampa maxima bajar, ahora no aparecen esos campos
 # Problema de compatibilidad antiguo nuevo en el 22, 23, 24, 25-> Al eliminarse los intras 4-7 quedan sin datos
-# TODO Problema de compatibilidad antiguo nuevo en el 29 -> Cuando habia RPAS tenia esos datos, despues los cambiaron por los tiempos de arranque
-# Problema decompatibilidad antiguo nuevo en el 13, 14 -> Comprobar
+# Problema de compatibilidad antiguo nuevo en el 29 -> Antes resultado de RPAS, despues los cambiaron por los tiempos de arranque
+# Problema de compatibilidad antiguo nuevo en el 30 -> Antes ofertas de RPAS, ahora precios terciaria
+# Problema de compatibilidad antiguo nuevo en el 31 -> Antes reasignaciones de RPAS, ahora reservada
+# Problema de compatibilidad antiguo nuevo en el 36 -> Antes no existia
+
 
 
