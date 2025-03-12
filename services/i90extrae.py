@@ -280,7 +280,7 @@ print(datos_periodo)
 # Problema de compatibilidad antiguo nuevo en el 29 -> Antes resultado de RPAS, despues los cambiaron por los tiempos de arranque
 # Problema de compatibilidad antiguo nuevo en el 30 -> Antes ofertas de RPAS, ahora precios terciaria
 # Problema de compatibilidad antiguo nuevo en el 31 -> Antes reasignaciones de RPAS, ahora reservada
-# Problema de compatibilidad antiguo nuevo en el 36 -> Antes no existia
+# Problema de compatibilidad antiguo nuevo en el 36 -> Antes no existia.
 
 
 
