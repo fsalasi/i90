@@ -5,9 +5,9 @@ from pandas import to_numeric
 
 def __get_header(hoja):
     relacion = {
-        1: 3, 2:3, 3:2, 5:2, 6:2, 7:2, 8:2, 9:2, 10:2, 11:2, 12:2, 13:2, 14:2, 15:2, 16:0, 17:2, 18:1,
-        19:3, 20:3, 21:3, 22:3, 23:3, 24:3, 25:3, 26:3, 27:3, 28:2, 29:1, 30:2, 32:2, 33:1, 34:2,35:2, 36:3
-    } #TODO adaptar a casos
+        1: 3, 2:3, 3:2, 5:2, 6:2, 7:2, 8:2, 9:2, 10:2, 11:2, 12:2, 13:2, 14:2, 144:2, 15:2, 16:0, 17:2, 18:1,
+        19:3, 20:3, 21:3, 22:3, 23:3, 24:3, 25:3, 26:3, 27:3, 28:2, 29:1, 299:2, 30:2, 300:2, 32:2, 33:1, 34:2,35:2, 36:3
+    }
     return relacion[hoja]
 
 
@@ -16,7 +16,7 @@ def __get_index_h(hoja):
         1: ['Unidad de Programación', 'Tipo Oferta'],
         2: ['Unidad de Programación', 'Tipo Oferta'],
         3: ['Unidad de Programación', 'Redespacho', 'Sentido', 'Nm Oferta asignada', 'Tipo Oferta', 'Tipo cálculo', 'Tipo Restricción'],
-        4: [], #TODO definir
+        4: [],
         5: ['Unidad de Programación', 'Sentido', 'Nm Oferta asignada', 'Tipo Oferta'],
         6: ['Unidad de Programación', 'Sesión', 'Redespacho', 'Sentido', 'Nm Oferta asignada', 'Tipo Oferta'],
         7: ['Unidad de Programación', 'Redespacho', 'Sentido', 'Tipo Oferta'],
@@ -26,7 +26,8 @@ def __get_index_h(hoja):
         11: ['Redespacho', 'Tipo'],
         12: ['Unidad de Programación'],
         13: ['Sentido', 'Unidad de Programación', 'Bloque', 'Nº Oferta', 'Tipo Oferta', 'Divisibilidad', 'Indicadores'],
-        14: ['Sentido', 'Unidad de Programación', 'Bloque', 'Tipo Oferta', 'Divisibilidad', 'Indicadores'], #TODO adaptar a los casos
+        14: ['Sentido', 'Unidad de Programación', 'Bloque', 'Tipo Oferta', 'Divisibilidad', 'Indicadores'],
+        144: ['Sesión', 'Sentido', 'Unidad de Programación', 'Bloque', 'Nº Oferta', 'Tipo Oferta', 'Divisibilidad', 'Rampa Maxima Subir', 'Rampa Maxima Bajar', 'Indicadores'],
         15: ['Sentido', 'Unidad de Programación', 'Bloque', 'Tipo Oferta', 'Indicadores'],
         16: ['Unidad Fisica'],
         17: ['Sentido', 'Unidad de Programación', 'Bloque', 'Tipo Oferta', 'Precedencia', 'Indicadores'],
@@ -41,9 +42,11 @@ def __get_index_h(hoja):
         26: ['Unidad de Programación', 'Tipo Oferta', 'Tipo Transacción'],
         27: ['Unidad de Programación', 'Tipo Oferta', 'Nº contrato'],
         28: ['Unidad de Programación', 'Sentido', 'Nm Oferta asignada', 'Tipo Oferta', 'Origen'],
-        29: ['Unidad de Programación'], #TODO adaptar a los casos
-        30: ['Redespacho', 'Tipo Redespacho', 'Sentido', 'Tipo QH', 'Indicadores'], #TODO adaptar a los casos
-        31: [], #TODO definir
+        29: ['Unidad de Programación'],
+        299: ['Unidad de Programación', 'Nm Oferta asignada', 'Tipo Oferta'],
+        30: ['Redespacho', 'Tipo Redespacho', 'Sentido', 'Tipo QH', 'Indicadores'],
+        300: ['Unidad de Programación', 'Bloque', 'Nº Oferta', 'Tipo Oferta', 'Divisibilad', 'Indicadores'],
+        31: [],
         32: ['Sentido', 'Unidad de Programación', 'Bloque', 'Tipo Oferta', 'Indicadores'],
         33: ['Unidad de Programación'],
         34: ['Unidad de Programación', 'Sentido', 'Tipo Restricción'],
@@ -65,10 +68,11 @@ def __get_index_d(hoja):
         8: ['Unidad de Programación'],
         9: ['Unidad de Programación'],
         10: ['Unidad de Programación'],
-        11: [], #TODO definir
+        11: [],
         12: ['Unidad de Programación'],
         13: ['Unidad de Programación'],
         14: ['Unidad de Programación'],
+        144: ['Unidad de Programación'],
         15: ['Unidad de Programación'],
         16: ['Unidad Fisica'],
         17: ['Unidad de Programación'],
@@ -84,7 +88,9 @@ def __get_index_d(hoja):
         27: ['Unidad de Programación'],
         28: ['Unidad de Programación'],
         29: ['Unidad de Programación'],
-        30: [], #TODO definir
+        299: ['Unidad de Programación'],
+        30: [],
+        300: ['Unidad de Programación'],
         32: ['Unidad de Programación'],
         33: ['Unidad de Programación'],
         34: ['Unidad de Programación'],
@@ -96,6 +102,11 @@ def __get_index_d(hoja):
 
 
 def __parsear_hora(hora_str):
+    """
+
+    :param hora_str:
+    :return:
+    """
     hora_str = str(hora_str)
     if hora_str[-1].lower() == 'a':
         hora_parseada = to_numeric(hora_str[:-1].split('-')[0])
@@ -162,6 +173,13 @@ def __transformar_periodos_a_fechahora(datos):
 
 
 def __reajustar_columnas(datos, hoja, indiceh):
+    """
+
+    :param datos:
+    :param hoja:
+    :param indiceh:
+    :return:
+    """
     # Eliminamos las columnas que no sirven
     columnas_a_eliminar = ['Hora', 'Cuarto de Hora del dia', 'Total', 'Total MW',
                            'Total MWh', 'PMP €/MWh', 'Precio Marginal Cuartohorario €/MWh']
@@ -189,6 +207,13 @@ def __reajustar_columnas(datos, hoja, indiceh):
 
 
 def __reajustar_filas(datos, hoja, indiceh):
+    """
+
+    :param datos:
+    :param hoja:
+    :param indiceh:
+    :return:
+    """
     if hoja not in [16, 18, 29, 33]:  # Hojas con datos horarios
         datos = datos.melt(id_vars=indiceh + ['fecha'], var_name='periodo', value_name='valor') # Cambiamos las columnas en filas
         datos = datos.dropna(axis=0, subset=['valor']) # Eliminamos las filas con NAN
@@ -198,6 +223,14 @@ def __reajustar_filas(datos, hoja, indiceh):
 
 
 def __formatear_datos_diarios(datos, hoja, fecha, indiced):
+    """
+
+    :param datos:
+    :param hoja:
+    :param fecha:
+    :param indiced:
+    :return:
+    """
     if hoja not in [16, 18, 29, 33]:  # Hojas con datos horarios
         datosd = datos.drop(columns=['valor', 'fechahora', 'periodo']).drop_duplicates()
     else:
@@ -224,6 +257,14 @@ def __formatear_datos_diarios(datos, hoja, fecha, indiced):
 
 
 def __formatear_datos_periodo(datos, datos_diarios, hoja, indiceh):
+    """
+
+    :param datos:
+    :param datos_diarios:
+    :param hoja:
+    :param indiceh:
+    :return:
+    """
     if hoja not in [16, 18, 29, 33]:  # Hojas con datos horarios
         datos = datos.drop(columns=['fecha', 'periodo'])
         datos_periodo = (pd.merge(datos_diarios.drop('fecha', axis=1), datos, on=indiceh, how="left").
@@ -235,6 +276,12 @@ def __formatear_datos_periodo(datos, datos_diarios, hoja, indiceh):
 
 
 def leer_i90_dia(fichero, hoja):
+    """
+
+    :param fichero:
+    :param hoja:
+    :return:
+    """
     # Leemos la hoja del fichero i90
     datos = pd.read_excel(fichero, sheet_name=hoja, header=__get_header(hoja))
 
@@ -273,14 +320,9 @@ datos_diarios, datos_periodo = leer_i90_dia(fichero, 36)
 print(datos_periodo)
 
 # TODO Problemas de compatibilidad
-# Problema de compatibilidad antiguo nuevo en el 4 -> Antes estava las restricciones del itnra, ahora reservada
-# Problema de compatibilidad antiguo nuevo en el 11 -> Ahora precios de RR, antes reservada
-# Problema de compatibilidad antiguo nuevo en el 14 -> Antes habia sesion, numero de oferta, rampa maxima subir, rampa maxima bajar, ahora no aparecen esos campos
-# Problema de compatibilidad antiguo nuevo en el 22, 23, 24, 25-> Al eliminarse los intras 4-7 quedan sin datos
-# Problema de compatibilidad antiguo nuevo en el 29 -> Antes resultado de RPAS, despues los cambiaron por los tiempos de arranque
-# Problema de compatibilidad antiguo nuevo en el 30 -> Antes ofertas de RPAS, ahora precios terciaria
-# Problema de compatibilidad antiguo nuevo en el 31 -> Antes reasignaciones de RPAS, ahora reservada
-# Problema de compatibilidad antiguo nuevo en el 36 -> Antes no existia
-
-
-
+# Problema de compatibilidad antiguo nuevo en el 11 -> Ahora precios de RR, antes reservada. A PARTIR DEL 07/11/2020 incluido
+# Problema de compatibilidad antiguo nuevo en el 14 -> Antes habia sesion, numero de oferta, rampa maxima subir, rampa maxima bajar, ahora no aparecen esos campos. A PARTIR DEL 07/11/2020 incluido
+# Problema de compatibilidad antiguo nuevo en el 22, 23, 24, 25-> Al eliminarse los intras 4-7 quedan sin datos. A PARTIR DEL 14/06/2024
+# Problema de compatibilidad antiguo nuevo en el 29 -> Antes resultado de RPAS, despues los cambiaron por los tiempos de arranque A PARTIR DEL 13/11/2019 reservada, a partir del 24/12/2020 tiempos de arranque
+# Problema de compatibilidad antiguo nuevo en el 30 -> Antes ofertas de RPAS, ahora precios terciaria. A PARTIR DEL 13/11/2019 reservada, a partir del 01/06/2021 precios terciaria
+# Problema de compatibilidad antiguo nuevo en el 36 -> Antes no existia. A PARTIR DEL 13/06/2018
