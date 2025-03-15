@@ -1,7 +1,14 @@
 import pandas as pd
 import numpy as np
+from datetime import datetime as dt
 from pandas import to_numeric
 
+FECHA1 = dt(2018, 6, 13)
+FECHA2 = dt(2019, 11, 13)
+FECHA3 = dt(2020, 11, 7)
+FECHA4 = dt(2020, 12, 24)
+FECHA5 = dt(2021, 6, 1)
+FECHA6 = dt(2024, 6, 14)
 
 def __get_header(hoja):
     relacion = {
@@ -282,22 +289,49 @@ def leer_i90_dia(fichero, hoja):
     :param hoja:
     :return:
     """
-    # Leemos la hoja del fichero i90
+    # Leemos la hoja del fichero i90 y la fecha
     datos = pd.read_excel(fichero, sheet_name=hoja, header=__get_header(hoja))
+    fecha = pd.read_excel(fichero).iloc[4, 0]
+
+    # Establecemos exclusiones segun fecha
+    if fecha < FECHA1:
+        hoja = 144 if hoja == 14 else hoja
+        hoja = 300 if hoja == 30 else hoja
+        hoja = 299 if hoja == 29 else hoja
+        if hoja in [36, 11]:
+            return "", ""
+    elif fecha < FECHA2:
+        hoja = 144 if hoja == 14 else hoja
+        hoja = 300 if hoja == 30 else hoja
+        hoja = 299 if hoja == 29 else hoja
+        if hoja in [11]:
+            return "", ""
+    elif fecha < FECHA3:
+        hoja = 144 if hoja == 14 else hoja
+        if hoja in [11, 29, 30]:
+            return "", ""
+    elif fecha < FECHA4:
+        if hoja in [29, 30]:
+            return "", ""
+    elif fecha < FECHA5:
+        if hoja in [30]:
+            return "", ""
+    elif fecha >= FECHA6:
+        if hoja in [22, 23, 24, 25]:
+            return "", ""
 
     # Rescatamos el indice
     indiced = __get_index_d(hoja)
     indiceh = __get_index_h(hoja)
-
-    # Añadimos la fecha
-    fecha = pd.read_excel(fichero).iloc[4, 0]
-    datos['fecha'] = fecha
 
     # Reajustamos las columnas necesarias
     datos = __reajustar_columnas(datos, hoja, indiceh)
 
     # Reajustamos las filas necesarias
     datos = __reajustar_filas(datos, hoja, indiceh)
+
+    # Añadimos la fecha
+    datos['fecha'] = fecha
 
     # Creamos los datos diarios
     datos_diarios = __formatear_datos_diarios(datos, hoja, fecha, indiced)
@@ -319,10 +353,9 @@ datos_diarios, datos_periodo = leer_i90_dia(fichero, 36)
 # print(datos_diarios)
 print(datos_periodo)
 
-# TODO Problemas de compatibilidad
-# Problema de compatibilidad antiguo nuevo en el 11 -> Ahora precios de RR, antes reservada. A PARTIR DEL 07/11/2020 incluido
-# Problema de compatibilidad antiguo nuevo en el 14 -> Antes habia sesion, numero de oferta, rampa maxima subir, rampa maxima bajar, ahora no aparecen esos campos. A PARTIR DEL 07/11/2020 incluido
-# Problema de compatibilidad antiguo nuevo en el 22, 23, 24, 25-> Al eliminarse los intras 4-7 quedan sin datos. A PARTIR DEL 14/06/2024
-# Problema de compatibilidad antiguo nuevo en el 29 -> Antes resultado de RPAS, despues los cambiaron por los tiempos de arranque A PARTIR DEL 13/11/2019 reservada, a partir del 24/12/2020 tiempos de arranque
-# Problema de compatibilidad antiguo nuevo en el 30 -> Antes ofertas de RPAS, ahora precios terciaria. A PARTIR DEL 13/11/2019 reservada, a partir del 01/06/2021 precios terciaria
-# Problema de compatibilidad antiguo nuevo en el 36 -> Antes no existia. A PARTIR DEL 13/06/2018
+# OK Problema de compatibilidad antiguo nuevo en el 11 -> Ahora precios de RR, antes reservada. A PARTIR DEL 07/11/2020 incluido
+# OK Problema de compatibilidad antiguo nuevo en el 14 -> Antes habia sesion, numero de oferta, rampa maxima subir, rampa maxima bajar, ahora no aparecen esos campos. A PARTIR DEL 07/11/2020 incluido
+# OK Problema de compatibilidad antiguo nuevo en el 22, 23, 24, 25-> Al eliminarse los intras 4-7 quedan sin datos. A PARTIR DEL 14/06/2024
+# OK Problema de compatibilidad antiguo nuevo en el 29 -> Antes resultado de RPAS, despues los cambiaron por los tiempos de arranque A PARTIR DEL 13/11/2019 reservada, a partir del 24/12/2020 tiempos de arranque
+# OK Problema de compatibilidad antiguo nuevo en el 30 -> Antes ofertas de RPAS, ahora precios terciaria. A PARTIR DEL 13/11/2019 reservada, a partir del 01/06/2021 precios terciaria
+# OK Problema de compatibilidad antiguo nuevo en el 36 -> Antes no existia. A PARTIR DEL 13/06/2018
