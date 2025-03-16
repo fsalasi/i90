@@ -2,6 +2,8 @@ import pandas as pd
 import numpy as np
 from datetime import datetime as dt
 from pandas import to_numeric
+from services.logger import logger
+import os
 
 FECHA1 = dt(2018, 6, 13)
 FECHA2 = dt(2019, 11, 13)
@@ -11,14 +13,24 @@ FECHA5 = dt(2021, 6, 1)
 FECHA6 = dt(2024, 6, 14)
 
 def __get_header(hoja):
+    """
+
+    :param hoja:
+    :return:
+    """
     relacion = {
-        1: 3, 2:3, 3:2, 5:2, 6:2, 7:2, 8:2, 9:2, 10:2, 11:2, 12:2, 13:2, 14:2, 144:2, 15:2, 16:0, 17:2, 18:1,
-        19:3, 20:3, 21:3, 22:3, 23:3, 24:3, 25:3, 26:3, 27:3, 28:2, 29:1, 299:2, 30:2, 300:2, 32:2, 33:1, 34:2,35:2, 36:3
+        1:3, 2:3, 3:2, 4:0, 5:2, 6:2, 7:2, 8:2, 9:2, 10:2, 11:2, 12:2, 13:2, 14:2, 144:2, 15:2, 16:0, 17:2, 18:1,
+        19:3, 20:3, 21:3, 22:3, 23:3, 24:3, 25:3, 26:3, 27:3, 28:2, 29:1, 299:2, 30:2, 300:2, 31:0, 32:2, 33:1, 34:2,35:2, 36:3
     }
     return relacion[hoja]
 
 
 def __get_index_h(hoja):
+    """
+
+    :param hoja:
+    :return:
+    """
     relacion = {
         1: ['Unidad de Programación', 'Tipo Oferta'],
         2: ['Unidad de Programación', 'Tipo Oferta'],
@@ -65,10 +77,16 @@ def __get_index_h(hoja):
 
 
 def __get_index_d(hoja):
+    """
+
+    :param hoja:
+    :return:
+    """
     relacion = {
         1: ['Unidad de Programación'],
         2: ['Unidad de Programación'],
         3: ['Unidad de Programación'],
+        4: [],
         5: ['Unidad de Programación'],
         6: ['Unidad de Programación'],
         7: ['Unidad de Programación'],
@@ -98,6 +116,7 @@ def __get_index_d(hoja):
         299: ['Unidad de Programación'],
         30: [],
         300: ['Unidad de Programación'],
+        31: [],
         32: ['Unidad de Programación'],
         33: ['Unidad de Programación'],
         34: ['Unidad de Programación'],
@@ -179,7 +198,7 @@ def __transformar_periodos_a_fechahora(datos):
     return datos
 
 
-def __reajustar_columnas(datos, hoja, indiceh):
+def __reajustar_columnas(fichero, datos, hoja, indiceh):
     """
 
     :param datos:
@@ -193,11 +212,12 @@ def __reajustar_columnas(datos, hoja, indiceh):
     datos = datos.drop(columns=columnas_a_eliminar, errors='ignore')
 
     # Reajustamos las columnas dobles cuando se dan
-    if hoja in [13, 14, 15, 17, 32]:
-        datos = datos.rename(columns={'MW': 'MW.0', '€/MW': '€/MW.0', 'MWh': 'MWh.0', '€/MWh': '€/MWh.0'})
+    if hoja in [13, 14, 144, 15, 17, 32]:
+        datos = datos.rename(columns={'Divisibilad': 'Divisibilidad', 'MW': 'MW.0', '€/MW': '€/MW.0', 'MWh': 'MWh.0', '€/MWh': '€/MWh.0'})
         melted_df = pd.melt(datos, id_vars=indiceh, var_name='Grupo_y_Periodo', value_name='Valor')
         melted_df[['Grupo', 'Periodo']] = melted_df['Grupo_y_Periodo'].str.split('.', expand=True)
         melted_df = melted_df.drop('Grupo_y_Periodo', axis=1)
+
         if melted_df['Periodo'].astype('int').max() > 24:
             melted_df['Periodo'] = melted_df['Periodo'].astype('int') + 1
         else:
@@ -210,7 +230,7 @@ def __reajustar_columnas(datos, hoja, indiceh):
         periodos_hoja_30 = pd.read_excel(fichero, sheet_name=30, header=1).columns.tolist()[6:]
         datos.columns = list(datos.columns[:5]) + periodos_hoja_30
 
-    return datos
+    return datos, indiceh
 
 
 def __reajustar_filas(datos, hoja, indiceh):
@@ -248,18 +268,6 @@ def __formatear_datos_diarios(datos, hoja, fecha, indiced):
     datosd = datosd.reset_index().drop('index', axis=1)
     datosd['id'] = fecha + str(hoja) + datosd.index.astype(str)
 
-    # Ajusto el formato de los datos diarios
-    if hoja not in [12]:
-        datosd = datosd.melt(id_vars=indiced + ['fecha', 'id'], var_name='parametro', value_name='valor') # Cambiamos las columnas en filas
-    else:
-        datosd['parametro'] = ""
-        datosd['valor'] = ""
-    datosd = datosd.dropna(axis=0, subset=['valor']) # Eliminamos las filas con NAN
-    datosd = datosd.rename(
-        columns={'Unidad de Programación': 'upuf', 'Unidad Física': 'upuf', 'Unidad Fisica': 'upuf'})
-    if hoja in [11, 30]: #añado la up vacia en las hojas que no tienen up
-        datosd['upuf'] = ""
-
     return datosd
 
 
@@ -277,7 +285,7 @@ def __formatear_datos_periodo(datos, datos_diarios, hoja, indiceh):
         datos_periodo = (pd.merge(datos_diarios.drop('fecha', axis=1), datos, on=indiceh, how="left").
                          drop(columns=indiceh))
     else:
-        datos_periodo = ""
+        datos_periodo = pd.DataFrame()
 
     return datos_periodo
 
@@ -289,55 +297,83 @@ def leer_i90_dia(fichero, hoja):
     :param hoja:
     :return:
     """
-    # Leemos la hoja del fichero i90 y la fecha
-    datos = pd.read_excel(fichero, sheet_name=hoja, header=__get_header(hoja))
+    # Leemos la fecha
     fecha = pd.read_excel(fichero).iloc[4, 0]
+    logger.debug("leyendo fichero i90: " + fichero + "; hoja: " + str(hoja) + "; fecha: " + fecha.strftime("%Y-%m-%d"))
 
     # Establecemos exclusiones segun fecha
     if fecha < FECHA1:
         hoja = 144 if hoja == 14 else hoja
         hoja = 300 if hoja == 30 else hoja
         hoja = 299 if hoja == 29 else hoja
-        if hoja in [36, 11]:
-            return "", ""
+        if hoja in [4, 31, 36, 11]:
+            return pd.DataFrame(), pd.DataFrame()
     elif fecha < FECHA2:
         hoja = 144 if hoja == 14 else hoja
         hoja = 300 if hoja == 30 else hoja
         hoja = 299 if hoja == 29 else hoja
-        if hoja in [11]:
-            return "", ""
+        if hoja in [4, 31, 11]:
+            return pd.DataFrame(), pd.DataFrame()
     elif fecha < FECHA3:
         hoja = 144 if hoja == 14 else hoja
-        if hoja in [11, 29, 30]:
-            return "", ""
+        if hoja in [4, 31, 11, 29, 30]:
+            return pd.DataFrame(), pd.DataFrame()
     elif fecha < FECHA4:
-        if hoja in [29, 30]:
-            return "", ""
+        if hoja in [4, 31, 29, 30]:
+            return pd.DataFrame(), pd.DataFrame()
     elif fecha < FECHA5:
-        if hoja in [30]:
-            return "", ""
+        if hoja in [4, 31, 30]:
+            return pd.DataFrame(), pd.DataFrame()
     elif fecha >= FECHA6:
-        if hoja in [22, 23, 24, 25]:
-            return "", ""
+        if hoja in [4, 31, 22, 23, 24, 25]:
+            return pd.DataFrame(), pd.DataFrame()
+
+    # Leemos la hoja del fichero i90
+    try:
+        datos = pd.read_excel(fichero, sheet_name=hoja, header=__get_header(hoja))
+    except Exception as e:
+        logger.error(e)
+        return pd.DataFrame(), pd.DataFrame()
 
     # Rescatamos el indice
     indiced = __get_index_d(hoja)
+    logger.debug("indiced: " + "; ".join(indiced))
     indiceh = __get_index_h(hoja)
+    logger.debug("indiceh: " + "; ".join(indiceh))
 
     # Reajustamos las columnas necesarias
-    datos = __reajustar_columnas(datos, hoja, indiceh)
-
-    # Reajustamos las filas necesarias
-    datos = __reajustar_filas(datos, hoja, indiceh)
+    logger.debug(datos)
+    datos, indiceh = __reajustar_columnas(fichero, datos, hoja, indiceh)
+    logger.debug(datos)
 
     # Añadimos la fecha
     datos['fecha'] = fecha
 
+    # Reajustamos las filas necesarias
+    datos = __reajustar_filas(datos, hoja, indiceh)
+    logger.debug(datos)
+
     # Creamos los datos diarios
     datos_diarios = __formatear_datos_diarios(datos, hoja, fecha, indiced)
+    logger.debug(datos_diarios)
 
     # Creo el dataframe de datos por periodo
     datos_periodo = __formatear_datos_periodo(datos, datos_diarios, hoja, indiceh)
+    logger.debug(datos_periodo)
+
+    # Ajusto el formato de los datos diarios
+    if hoja not in [12]:
+        datos_diarios = datos_diarios.melt(id_vars=indiced + ['fecha', 'id'], var_name='parametro',
+                             value_name='valor')  # Cambiamos las columnas en filas
+    else:
+        datos_diarios['parametro'] = ""
+        datos_diarios['valor'] = ""
+    datos_diarios = datos_diarios.dropna(axis=0, subset=['valor'])  # Eliminamos las filas con NAN
+
+    datos_diarios = datos_diarios.rename(
+        columns={'Unidad de Programación': 'upuf', 'Unidad Física': 'upuf', 'Unidad Fisica': 'upuf'})
+    if hoja in [11, 30]:  # añado la up vacia en las hojas que no tienen up
+        datos_diarios['upuf'] = ""
 
     return datos_diarios, datos_periodo
 
@@ -348,10 +384,18 @@ pd.set_option('display.max_columns', None) # Todas las columnas
 # pd.set_option('display.width', None)       # Ajustar ancho automáticamente
 # pd.set_option('display.max_colwidth', None) #
 
-fichero = '../ficherosi90/I90DIA_20241028.xls'
-datos_diarios, datos_periodo = leer_i90_dia(fichero, 36)
-# print(datos_diarios)
-print(datos_periodo)
+for f in os.listdir("../ficherosi90"):
+    f1 = "../ficherosi90/" + f
+    for h in list(range(1, 37)):
+        datos_diarios, datos_periodo = leer_i90_dia(f1, h)
+        # deslocalizamos
+        try:
+            datos_periodo['fechahora'] = datos_periodo['fechahora'].dt.tz_localize(None)
+        except:
+            logger.debug("ERROR fechara en: " + str(h))
+
+        datos_diarios.to_excel("../i90tratadodia/" + f + "_hoja" + str(h) + "_diario.xlsx")
+        datos_periodo.to_excel("../i90tratadoperiodo/" + f + "_hoja" + str(h) + "_periodo.xlsx")
 
 # OK Problema de compatibilidad antiguo nuevo en el 11 -> Ahora precios de RR, antes reservada. A PARTIR DEL 07/11/2020 incluido
 # OK Problema de compatibilidad antiguo nuevo en el 14 -> Antes habia sesion, numero de oferta, rampa maxima subir, rampa maxima bajar, ahora no aparecen esos campos. A PARTIR DEL 07/11/2020 incluido
