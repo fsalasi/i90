@@ -1,3 +1,4 @@
+import shutil
 import pandas as pd
 import numpy as np
 from datetime import datetime as dt
@@ -64,7 +65,7 @@ def __get_index_h(hoja):
         29: ['Unidad de Programación'],
         299: ['Unidad de Programación', 'Nm Oferta asignada', 'Tipo Oferta'],
         30: ['Redespacho', 'Tipo Redespacho', 'Sentido', 'Tipo QH', 'Indicadores'],
-        300: ['Unidad de Programación', 'Bloque', 'Nº Oferta', 'Tipo Oferta', 'Divisibilad', 'Indicadores'],
+        300: ['Unidad de Programación', 'Bloque', 'Nº Oferta', 'Tipo Oferta', 'Divisibilidad', 'Indicadores'],
         31: [],
         32: ['Sentido', 'Unidad de Programación', 'Bloque', 'Tipo Oferta', 'Indicadores'],
         33: ['Unidad de Programación'],
@@ -181,8 +182,8 @@ def __transformar_periodos_a_fechahora(datos):
             condicion_dst = datos['hora_parseada'] > 2
             datos['fechahora'] = np.where(
                 condicion_dst,
-                datos['fechahora'].dt.tz_localize('Europe/Madrid', ambiguous=False).dt.tz_convert(
-                    'UTC') - pd.to_timedelta(3600, unit='s'),
+                datos['fechahora'].dt.tz_localize('Europe/Madrid', ambiguous=False).dt.tz_convert('UTC') -
+                pd.to_timedelta(3600, unit='s'),
                 datos['fechahora'].dt.tz_localize('Europe/Madrid', ambiguous=True).dt.tz_convert('UTC'))
             datos = datos.drop(columns=['hora_parseada'])
         else:
@@ -192,8 +193,28 @@ def __transformar_periodos_a_fechahora(datos):
             datos['fechahora'] = ((datos['fecha'] + pd.to_timedelta(datos['periodo'] * 3600, unit='s'))
                                   .dt.tz_localize('Europe/Madrid').dt.tz_convert('UTC'))
 
+    elif max_periodo == 22:
+        datos['periodo'] = datos['periodo'].astype(str).astype(int)
+        datos['fechahora'] = datos['fecha'] + pd.to_timedelta(datos['periodo'] * 3600, unit='s')
+        condicion_dst = datos['periodo'] > 2
+        datos['fechahora'] = np.where(
+            condicion_dst,
+            datos['fechahora'].dt.tz_localize('Europe/Madrid').dt.tz_convert('UTC') +
+            pd.to_timedelta(3600, unit='s'),
+            datos['fechahora'].dt.tz_localize('Europe/Madrid').dt.tz_convert('UTC'))
+
+    elif max_periodo == 24:
+        datos['periodo'] = datos['periodo'].astype(str).astype(int)
+        datos['fechahora'] = datos['fecha'] + pd.to_timedelta(datos['periodo'] * 3600, unit='s')
+        condicion_dst = datos['periodo'] > 3
+        datos['fechahora'] = np.where(
+            condicion_dst,
+            datos['fechahora'].dt.tz_localize('Europe/Madrid', ambiguous=False).dt.tz_convert('UTC') -
+            pd.to_timedelta(3600, unit='s'),
+            datos['fechahora'].dt.tz_localize('Europe/Madrid', ambiguous=True).dt.tz_convert('UTC'))
+
     else:
-        print("ERROR EN NUMERO DE PERIODOS")
+        logger.error("ERROR EN NUMERO DE PERIODOS")
 
     return datos
 
@@ -211,8 +232,11 @@ def __reajustar_columnas(fichero, datos, hoja, indiceh):
                            'Total MWh', 'PMP €/MWh', 'Precio Marginal Cuartohorario €/MWh']
     datos = datos.drop(columns=columnas_a_eliminar, errors='ignore')
 
+    # Ponemos a 0 los NAs de la primera fila para tener datos en todos los periodos
+    datos.iloc[0] = datos.iloc[0].fillna(0)
+
     # Reajustamos las columnas dobles cuando se dan
-    if hoja in [13, 14, 144, 15, 17, 32]:
+    if hoja in [13, 14, 144, 15, 17, 300, 32]:
         datos = datos.rename(columns={'Divisibilad': 'Divisibilidad', 'MW': 'MW.0', '€/MW': '€/MW.0', 'MWh': 'MWh.0', '€/MWh': '€/MWh.0'})
         melted_df = pd.melt(datos, id_vars=indiceh, var_name='Grupo_y_Periodo', value_name='Valor')
         melted_df[['Grupo', 'Periodo']] = melted_df['Grupo_y_Periodo'].str.split('.', expand=True)
@@ -302,6 +326,7 @@ def leer_i90_dia(fichero, hoja):
     logger.debug("leyendo fichero i90: " + fichero + "; hoja: " + str(hoja) + "; fecha: " + fecha.strftime("%Y-%m-%d"))
 
     # Establecemos exclusiones segun fecha
+    hoja_ori = hoja
     if fecha < FECHA1:
         hoja = 144 if hoja == 14 else hoja
         hoja = 300 if hoja == 30 else hoja
@@ -330,36 +355,36 @@ def leer_i90_dia(fichero, hoja):
 
     # Leemos la hoja del fichero i90
     try:
-        datos = pd.read_excel(fichero, sheet_name=hoja, header=__get_header(hoja))
+        datos = pd.read_excel(fichero, sheet_name=hoja_ori, header=__get_header(hoja))
     except Exception as e:
-        logger.error(e)
+        logger.error("Error al leer el fichero excel: " + str(e))
         return pd.DataFrame(), pd.DataFrame()
 
     # Rescatamos el indice
     indiced = __get_index_d(hoja)
-    logger.debug("indiced: " + "; ".join(indiced))
+    # logger.debug("indiced: " + "; ".join(indiced))
     indiceh = __get_index_h(hoja)
-    logger.debug("indiceh: " + "; ".join(indiceh))
+    # logger.debug("indiceh: " + "; ".join(indiceh))
 
     # Reajustamos las columnas necesarias
-    logger.debug(datos)
+    # logger.debug(datos)
     datos, indiceh = __reajustar_columnas(fichero, datos, hoja, indiceh)
-    logger.debug(datos)
+    # logger.debug(datos)
 
     # Añadimos la fecha
     datos['fecha'] = fecha
 
     # Reajustamos las filas necesarias
     datos = __reajustar_filas(datos, hoja, indiceh)
-    logger.debug(datos)
+    # logger.debug(datos)
 
     # Creamos los datos diarios
     datos_diarios = __formatear_datos_diarios(datos, hoja, fecha, indiced)
-    logger.debug(datos_diarios)
+    # logger.debug(datos_diarios)
 
     # Creo el dataframe de datos por periodo
     datos_periodo = __formatear_datos_periodo(datos, datos_diarios, hoja, indiceh)
-    logger.debug(datos_periodo)
+    # logger.debug(datos_periodo)
 
     # Ajusto el formato de los datos diarios
     if hoja not in [12]:
@@ -384,7 +409,7 @@ pd.set_option('display.max_columns', None) # Todas las columnas
 # pd.set_option('display.width', None)       # Ajustar ancho automáticamente
 # pd.set_option('display.max_colwidth', None) #
 
-for f in os.listdir("../ficherosi90"):
+for f in sorted(os.listdir("../ficherosi90"))[:-1]:
     f1 = "../ficherosi90/" + f
     for h in list(range(1, 37)):
         datos_diarios, datos_periodo = leer_i90_dia(f1, h)
@@ -392,10 +417,11 @@ for f in os.listdir("../ficherosi90"):
         try:
             datos_periodo['fechahora'] = datos_periodo['fechahora'].dt.tz_localize(None)
         except:
-            logger.debug("ERROR fechara en: " + str(h))
+            logger.debug("ERROR fechahora en: " + str(h))
 
         datos_diarios.to_excel("../i90tratadodia/" + f + "_hoja" + str(h) + "_diario.xlsx")
         datos_periodo.to_excel("../i90tratadoperiodo/" + f + "_hoja" + str(h) + "_periodo.xlsx")
+    shutil.move(f1, "../ficherosi90/leidos/" + f)
 
 # OK Problema de compatibilidad antiguo nuevo en el 11 -> Ahora precios de RR, antes reservada. A PARTIR DEL 07/11/2020 incluido
 # OK Problema de compatibilidad antiguo nuevo en el 14 -> Antes habia sesion, numero de oferta, rampa maxima subir, rampa maxima bajar, ahora no aparecen esos campos. A PARTIR DEL 07/11/2020 incluido
