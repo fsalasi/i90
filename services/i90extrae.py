@@ -1,10 +1,9 @@
-import shutil
 import pandas as pd
 import numpy as np
 from datetime import datetime as dt
 from pandas import to_numeric
 from services.logger import logger
-import os
+
 
 FECHA1 = dt(2018, 6, 13)
 FECHA2 = dt(2019, 11, 13)
@@ -190,23 +189,21 @@ def __transformar_periodos_a_fechahora(datos):
             datos['periodo'] = datos['periodo'].astype(str)
             datos['periodo'] = datos['periodo'].str.extract('^(\d+)').astype(int)
             datos['fechahora'] = datos['fecha'] + pd.to_timedelta(datos['periodo'] * 3600, unit='s')
-            datos['fechahora'] = ((datos['fecha'] + pd.to_timedelta(datos['periodo'] * 3600, unit='s'))
-                                  .dt.tz_localize('Europe/Madrid').dt.tz_convert('UTC'))
+            datos['fechahora'] = datos['fechahora'].dt.tz_localize('Europe/Madrid').dt.tz_convert('UTC')
 
     elif max_periodo == 22:
         datos['periodo'] = datos['periodo'].astype(str).astype(int)
-        datos['fechahora'] = datos['fecha'] + pd.to_timedelta(datos['periodo'] * 3600, unit='s')
-        condicion_dst = datos['periodo'] > 2
+        condicion_dst = datos['periodo'] > 1
         datos['fechahora'] = np.where(
             condicion_dst,
-            datos['fechahora'].dt.tz_localize('Europe/Madrid').dt.tz_convert('UTC') +
-            pd.to_timedelta(3600, unit='s'),
-            datos['fechahora'].dt.tz_localize('Europe/Madrid').dt.tz_convert('UTC'))
+            datos['fecha'] + pd.to_timedelta((datos['periodo'] + 1) * 3600, unit='s'),
+            datos['fecha'] + pd.to_timedelta(datos['periodo'] * 3600, unit='s'))
+        datos['fechahora'] = datos['fechahora'].dt.tz_localize('Europe/Madrid').dt.tz_convert('UTC')
 
     elif max_periodo == 24:
         datos['periodo'] = datos['periodo'].astype(str).astype(int)
         datos['fechahora'] = datos['fecha'] + pd.to_timedelta(datos['periodo'] * 3600, unit='s')
-        condicion_dst = datos['periodo'] > 3
+        condicion_dst = datos['periodo'] > 2
         datos['fechahora'] = np.where(
             condicion_dst,
             datos['fechahora'].dt.tz_localize('Europe/Madrid', ambiguous=False).dt.tz_convert('UTC') -
@@ -360,6 +357,10 @@ def leer_i90_dia(fichero, hoja):
         logger.error("Error al leer el fichero excel: " + str(e))
         return pd.DataFrame(), pd.DataFrame()
 
+    if datos.empty:
+        logger.error("No hay datos en la hoja")
+        return pd.DataFrame(), pd.DataFrame()
+
     # Rescatamos el indice
     indiced = __get_index_d(hoja)
     # logger.debug("indiced: " + "; ".join(indiced))
@@ -403,25 +404,7 @@ def leer_i90_dia(fichero, hoja):
     return datos_diarios, datos_periodo
 
 
-#  TODO insertar en ficheros parquet
-# pd.set_option('display.max_rows', None)    # Todas las filas
-pd.set_option('display.max_columns', None) # Todas las columnas
-# pd.set_option('display.width', None)       # Ajustar ancho automáticamente
-# pd.set_option('display.max_colwidth', None) #
 
-for f in sorted(os.listdir("../ficherosi90"))[:-1]:
-    f1 = "../ficherosi90/" + f
-    for h in list(range(1, 37)):
-        datos_diarios, datos_periodo = leer_i90_dia(f1, h)
-        # deslocalizamos
-        try:
-            datos_periodo['fechahora'] = datos_periodo['fechahora'].dt.tz_localize(None)
-        except:
-            logger.debug("ERROR fechahora en: " + str(h))
-
-        datos_diarios.to_excel("../i90tratadodia/" + f + "_hoja" + str(h) + "_diario.xlsx")
-        datos_periodo.to_excel("../i90tratadoperiodo/" + f + "_hoja" + str(h) + "_periodo.xlsx")
-    shutil.move(f1, "../ficherosi90/leidos/" + f)
 
 # OK Problema de compatibilidad antiguo nuevo en el 11 -> Ahora precios de RR, antes reservada. A PARTIR DEL 07/11/2020 incluido
 # OK Problema de compatibilidad antiguo nuevo en el 14 -> Antes habia sesion, numero de oferta, rampa maxima subir, rampa maxima bajar, ahora no aparecen esos campos. A PARTIR DEL 07/11/2020 incluido
