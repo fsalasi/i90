@@ -1,23 +1,46 @@
+# services/extraeri90.py
+"""Script con funciones para gestionar la exrtaccion de datos de
+los ficheros i90.
+"""
+
+# Librerias
 import pandas as pd
 import numpy as np
 from datetime import datetime as dt
 from pandas import to_numeric
 from services.logger import logger
+from constants import FECHA1, FECHA2, FECHA3, FECHA4, FECHA5, FECHA6
 
 
-FECHA1 = dt(2018, 6, 13)
-FECHA2 = dt(2019, 11, 13)
-FECHA3 = dt(2020, 11, 7)
-FECHA4 = dt(2020, 12, 24)
-FECHA5 = dt(2021, 6, 1)
-FECHA6 = dt(2024, 6, 14)
+# Propietario
+__author__ = "Francisco Salas"
+__copyright__ = "Copyright 2025"
+__license__ = "GPL 3.0"
+__maintainer__ = "Francisco Salas"
+__email__ = "fsalasi93@gmail.com"
+__status__ = "Dev"
 
+
+# Funcion que mapea el numero de filas de header de cada hoja
 def __get_header(hoja):
     """
+    Funcion que mapea el numero de filas de cabecera de cada hoja
+    del i90. Las hojas que han cambiado de formato se identifican repitiendo el
+    ultimo numero de cada hoja (la 30 seria la 300) en las versiones mas antiguas
+    (queda el numero de hoja correcto de la version mas reciente).
 
-    :param hoja:
-    :return:
+    Parameters
+    ----------
+    hoja : int
+        Identificador (numero) de la hoja del fichero i90.
+
+    Returns
+    ------
+    relacion : int
+        numero de filas de la cabecera de la hoja del fichero excel i90
     """
+
+    # Mapeo de hoja y numero de filas de encabezado
     relacion = {
         1:3, 2:3, 3:2, 4:0, 5:2, 6:2, 7:2, 8:2, 9:2, 10:2, 11:2, 12:2, 13:2, 14:2, 144:2, 15:2, 16:0, 17:2, 18:1,
         19:3, 20:3, 21:3, 22:3, 23:3, 24:3, 25:3, 26:3, 27:3, 28:2, 29:1, 299:2, 30:2, 300:2, 31:0, 32:2, 33:1, 34:2,35:2, 36:3
@@ -25,12 +48,24 @@ def __get_header(hoja):
     return relacion[hoja]
 
 
+# Funcion que devuelve una lista con los nombre del encabezado de cada hoja del fichero i90
 def __get_index_h(hoja):
     """
+    Funcion que devuelve una lista con los nombres de las columnas comunes a todas
+    las horas de cada hoja del fichero i90.
 
-    :param hoja:
-    :return:
+    Parameters
+    ----------
+    hoja : int
+        Identificador (numero) de la hoja del fichero i90.
+
+    Returns
+    ------
+    relacion : list
+        lista con el nombre de las cloumnas del encabezado
     """
+
+    # Mapeo de hoja y nombres de columnas
     relacion = {
         1: ['Unidad de Programación', 'Tipo Oferta'],
         2: ['Unidad de Programación', 'Tipo Oferta'],
@@ -76,12 +111,24 @@ def __get_index_h(hoja):
     return relacion[hoja]
 
 
+# Funcion que devuelve una lista con los nombre del encabezado de cada hoja del fichero i90
 def __get_index_d(hoja):
     """
+    Funcion que devuelve una lista con los nombres de las columnas comunes a todas
+    los dias de cada hoja del fichero i90.
 
-    :param hoja:
-    :return:
+    Parameters
+    ----------
+    hoja : int
+        Identificador (numero) de la hoja del fichero i90.
+
+    Returns
+    ------
+    relacion : list
+        lista con el nombre de las cloumnas del encabezado
     """
+
+    # Mapeo de hoja y nombres de columnas
     relacion = {
         1: ['Unidad de Programación'],
         2: ['Unidad de Programación'],
@@ -127,12 +174,28 @@ def __get_index_d(hoja):
     return relacion[hoja]
 
 
+# Funcion para interpretar la hora repetida del cambio de hora
 def __parsear_hora(hora_str):
     """
+    Funcion que lee la hora repetida del dia del cambio de hora y la transforma
+    segun su correspondiente hora en UTC y el formato recibido. Dependiendo de si los
+    datos corresponden a una hoja con datos horarios o no, la hora sra un entero o
+    un string, y podra ser en formato de periodods cuartohorarios o en formato de
+    horas. Cuando son horas, el i90 identifica la hora repetida con un caracter 'a'
+    o 'b'.
 
-    :param hora_str:
-    :return:
+    Parameters
+    ----------
+    hora_str : str o int
+        Identificador (numero) de la hora. Puede ser un periodo (int) o un indicador
+        de la hora en formato hh-hh (str)
+
+    Returns
+    ------
+    hora_parseada : numeric
+        hora transformada en entero y con el cambio de hora correcto
     """
+
     hora_str = str(hora_str)
     if hora_str[-1].lower() == 'a':
         hora_parseada = to_numeric(hora_str[:-1].split('-')[0])
@@ -145,39 +208,71 @@ def __parsear_hora(hora_str):
     return hora_parseada
 
 
+# Funcion que recibe el dataset con fechas y periodos y los transforma en fechahora
 def __transformar_periodos_a_fechahora(datos):
     """
+    Funcion que recibe el dataset con fechas y periodos, horarios o cuartohorarios,
+    y crea una nueva variable en formato fechahora UTC (ya salvando el cambio de hora).
+
+    Parameters
+    ----------
+    datos : pd.DataFrame
+        DataFrame de pandas con los datos a tratar.
+
+    Returns
+    ------
+    datos : pd.DataFrame
+        DataFrame de pandas con los datos tratados.
     """
+
+    # Obtenemos el periodo maximo para interpretar el tipo de formato en el que se encuentran expresados
     max_periodo = datos['periodo'].astype(str).str.extract('^(\d+)').astype(int).max()[0]
 
+    # Si el periodo maximo es 100, se trata de periodos cuartohorarios y cambio de hora de otoño
     if max_periodo == 100:
+        # Nos aseguramos de que todos los datos estan en int
         datos['periodo'] = datos['periodo'].astype(str).astype(int)
+        # Creamos la fechahora
         datos['fechahora'] = datos['fecha'] + pd.to_timedelta((datos['periodo'] - 1) * 900, unit='s')
+        # Gestionamos el cambio de hora para pasarlo a UTC
         condicion_dst = datos['periodo'] > 12
         datos['fechahora'] = np.where(
             condicion_dst,
             datos['fechahora'].dt.tz_localize('Europe/Madrid', ambiguous=False).dt.tz_convert('UTC') - pd.to_timedelta(3600, unit='s'),
             datos['fechahora'].dt.tz_localize('Europe/Madrid', ambiguous=True).dt.tz_convert('UTC'))
 
+    # Si el periodo maximo es 100, se trata de periodos cuartohorarios
     elif max_periodo == 96:
+        # Nos aseguramos de que todos los datos estan en int
         datos['periodo'] = datos['periodo'].astype(str).astype(int)
+        # Creamos la fechahora y convertimos a UTC
         datos['fechahora'] = ((datos['fecha'] + pd.to_timedelta((datos['periodo'] - 1) * 900, unit='s'))
                               .dt.tz_localize('Europe/Madrid').dt.tz_convert('UTC'))
 
+    # Si el periodo maximo es 100, se trata de periodos cuartohorarios y cambio de hora de primavera
     elif max_periodo == 92:
+        # Nos aseguramos de que todos los datos estan en int
         datos['periodo'] = datos['periodo'].astype(str).astype(int)
+        # Creamos la fechahora
         datos['fechahora'] = datos['fecha'] + pd.to_timedelta((datos['periodo'] - 1) * 900, unit='s')
+        # Gestionamos el cambio de hora para pasarlo a UTC
         condicion_dst = datos['periodo'] > 8
         datos['fechahora'] = np.where(
             condicion_dst,
             datos['fechahora'].dt.tz_localize('Europe/Madrid').dt.tz_convert('UTC') + pd.to_timedelta(3600, unit='s'),
             datos['fechahora'].dt.tz_localize('Europe/Madrid').dt.tz_convert('UTC'))
 
+    # Si el periodo maximo es 23, se trata de periodos horarios
     elif max_periodo == 23:
+        # Calculamos el numero de periodos para verificar si estamos en un dia con cambio de hora
         n_periodos = len(datos.groupby('periodo').size().reset_index(name='Cantidad'))
-        if n_periodos > 23:
+
+        if n_periodos > 23: # Cambio de hora de otoño (cuando viene en formato 'a' - 'b'
+            # parseamos la hora para que se cambie de forma correcta
             datos['hora_parseada'] = datos['periodo'].apply(__parsear_hora).astype(int)
+            # Creamos la variable fechahora
             datos['fechahora'] = datos['fecha'] + pd.to_timedelta(datos['hora_parseada'] * 3600, unit='s')
+            # Convertimos en UTC de forma correcta
             condicion_dst = datos['hora_parseada'] > 2
             datos['fechahora'] = np.where(
                 condicion_dst,
@@ -185,14 +280,22 @@ def __transformar_periodos_a_fechahora(datos):
                 pd.to_timedelta(3600, unit='s'),
                 datos['fechahora'].dt.tz_localize('Europe/Madrid', ambiguous=True).dt.tz_convert('UTC'))
             datos = datos.drop(columns=['hora_parseada'])
-        else:
+        else: # Resto de casos
+            # Aseguramos que todos los registros son string
             datos['periodo'] = datos['periodo'].astype(str)
+            # Extraemos la hora de cada identificador (hh1-hh2)
             datos['periodo'] = datos['periodo'].str.extract('^(\d+)').astype(int)
+            # Convierto a fechahora
             datos['fechahora'] = datos['fecha'] + pd.to_timedelta(datos['periodo'] * 3600, unit='s')
+            # Transformo a UTC
             datos['fechahora'] = datos['fechahora'].dt.tz_localize('Europe/Madrid').dt.tz_convert('UTC')
 
+    # Si el periodo maximo es 22, se trata de periodos horarios y cambio de hora de primavera, y ademas significa
+    # que la hora vien en formato entero, no string (corresponde a las hojas con columnas dobles)
     elif max_periodo == 22:
+        # Me aseguro de que todos los registros son int
         datos['periodo'] = datos['periodo'].astype(str).astype(int)
+        # Gestionamos el cambio de hora y convertimos a UTC
         condicion_dst = datos['periodo'] > 1
         datos['fechahora'] = np.where(
             condicion_dst,
@@ -200,9 +303,14 @@ def __transformar_periodos_a_fechahora(datos):
             datos['fecha'] + pd.to_timedelta(datos['periodo'] * 3600, unit='s'))
         datos['fechahora'] = datos['fechahora'].dt.tz_localize('Europe/Madrid').dt.tz_convert('UTC')
 
+    # Si el periodo maximo es 24, se trata de periodos horarios y cambio de hora de otoño, y ademas significa
+    # que la hora vien en formato entero, no string (corresponde a las hojas con columnas dobles)
     elif max_periodo == 24:
+        # Me aseguro de que todos los registros son int
         datos['periodo'] = datos['periodo'].astype(str).astype(int)
+        # Convierto todos los registros a fechahora
         datos['fechahora'] = datos['fecha'] + pd.to_timedelta(datos['periodo'] * 3600, unit='s')
+        # Gestiono el cambio de hora y transformo a UTC
         condicion_dst = datos['periodo'] > 2
         datos['fechahora'] = np.where(
             condicion_dst,
@@ -211,11 +319,14 @@ def __transformar_periodos_a_fechahora(datos):
             datos['fechahora'].dt.tz_localize('Europe/Madrid', ambiguous=True).dt.tz_convert('UTC'))
 
     else:
-        logger.error("ERROR EN NUMERO DE PERIODOS")
+        # Si no se corresponde con ninguno de los casos de control, se emite un error ya que no
+        # es posible gestionar el caso.
+        raise Exception("ERROR EN NUMERO DE PERIODOS")
 
     return datos
 
 
+# Funcion para reajustar la estructura y formato de las columnas del DataFrame TODO: limpio hasta aqui
 def __reajustar_columnas(fichero, datos, hoja, indiceh):
     """
 
@@ -262,10 +373,13 @@ def __reajustar_filas(datos, hoja, indiceh):
     :param indiceh:
     :return:
     """
-    if hoja not in [16, 18, 29, 33]:  # Hojas con datos horarios
+    if hoja not in [16, 18, 29, 33]:  # Excluimos las hojas con solo datos diarios
         datos = datos.melt(id_vars=indiceh + ['fecha'], var_name='periodo', value_name='valor') # Cambiamos las columnas en filas
         datos = datos.dropna(axis=0, subset=['valor']) # Eliminamos las filas con NAN
-        datos = __transformar_periodos_a_fechahora(datos) # Convertimos la hora en fechahora.
+        try:
+            datos = __transformar_periodos_a_fechahora(datos) # Convertimos la hora en fechahora.
+        except Exception as e:
+            raise Exception(str(e))
 
     return datos
 
@@ -376,8 +490,12 @@ def leer_i90_dia(fichero, hoja):
     datos['fecha'] = fecha
 
     # Reajustamos las filas necesarias
-    datos = __reajustar_filas(datos, hoja, indiceh)
-    # logger.debug(datos)
+    try:
+        datos = __reajustar_filas(datos, hoja, indiceh)
+    except Exception as e:
+        logger.error("Error al ajustar las filas: " + str(e))
+        return pd.DataFrame(), pd.DataFrame()
+        # logger.debug(datos)
 
     # Creamos los datos diarios
     datos_diarios = __formatear_datos_diarios(datos, hoja, fecha, indiced)
@@ -405,10 +523,12 @@ def leer_i90_dia(fichero, hoja):
 
 
 
-
+# Otras notas
+"""
 # OK Problema de compatibilidad antiguo nuevo en el 11 -> Ahora precios de RR, antes reservada. A PARTIR DEL 07/11/2020 incluido
 # OK Problema de compatibilidad antiguo nuevo en el 14 -> Antes habia sesion, numero de oferta, rampa maxima subir, rampa maxima bajar, ahora no aparecen esos campos. A PARTIR DEL 07/11/2020 incluido
 # OK Problema de compatibilidad antiguo nuevo en el 22, 23, 24, 25-> Al eliminarse los intras 4-7 quedan sin datos. A PARTIR DEL 14/06/2024
 # OK Problema de compatibilidad antiguo nuevo en el 29 -> Antes resultado de RPAS, despues los cambiaron por los tiempos de arranque A PARTIR DEL 13/11/2019 reservada, a partir del 24/12/2020 tiempos de arranque
 # OK Problema de compatibilidad antiguo nuevo en el 30 -> Antes ofertas de RPAS, ahora precios terciaria. A PARTIR DEL 13/11/2019 reservada, a partir del 01/06/2021 precios terciaria
 # OK Problema de compatibilidad antiguo nuevo en el 36 -> Antes no existia. A PARTIR DEL 13/06/2018
+"""

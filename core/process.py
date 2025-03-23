@@ -6,12 +6,6 @@ from services.db_pq_handler import escribir_datos_periodo
 from services.logger import logger
 from services.i90extrae import leer_i90_dia
 
-#  TODO insertar en ficheros parquet
-pd.set_option('display.max_rows', None)    # Todas las filas
-pd.set_option('display.max_columns', None) # Todas las columnas
-# pd.set_option('display.width', None)       # Ajustar ancho automáticamente
-# pd.set_option('display.max_colwidth', None) #
-
 
 def extraer_datos_pq():
     i = 0
