@@ -1,12 +1,18 @@
 # services/extraeri90.py
-"""Script con funciones para gestionar la exrtaccion de datos de
+"""Script con funciones para gestionar la extraccion de datos de
 los ficheros i90.
+
+Notas:
+- Problema de compatibilidad antiguo nuevo en el 11 -> Ahora precios de RR, antes reservada. A PARTIR DEL 07/10/2020 incluido
+- Problema de compatibilidad antiguo nuevo en el 22, 23, 24, 25-> Al eliminarse los intras 4-7 quedan sin datos. A PARTIR DEL 14/06/2024
+- Problema de compatibilidad antiguo nuevo en el 29 -> Antes resultado de RPAS, despues los cambiaron por los tiempos de arranque A PARTIR DEL 13/11/2019 reservada, a partir del 24/12/2020 tiempos de arranque
+- Problema de compatibilidad antiguo nuevo en el 30 -> Antes ofertas de RPAS, ahora precios terciaria. A PARTIR DEL 13/11/2019 reservada, a partir del 01/06/2021 precios terciaria
+- Problema de compatibilidad antiguo nuevo en el 36 -> Antes no existia. A PARTIR DEL 13/06/2018
 """
 
 # Librerias
 import pandas as pd
 import numpy as np
-from datetime import datetime as dt
 from pandas import to_numeric
 from services.logger import logger
 from constants import FECHA1, FECHA2, FECHA3, FECHA4, FECHA5, FECHA6
@@ -42,10 +48,51 @@ def __get_header(hoja):
 
     # Mapeo de hoja y numero de filas de encabezado
     relacion = {
-        1:3, 2:3, 3:2, 4:0, 5:2, 6:2, 7:2, 8:2, 9:2, 10:2, 11:2, 12:2, 13:2, 14:2, 144:2, 15:2, 16:0, 17:2, 18:1,
+        1:3, 2:3, 3:2, 4:0, 5:2, 6:2, 7:2, 8:2, 9:2, 10:2, 11:2, 12:2, 13:2, 14:2, 15:2, 16:0, 17:2, 18:1,
         19:3, 20:3, 21:3, 22:3, 23:3, 24:3, 25:3, 26:3, 27:3, 28:2, 29:1, 299:2, 30:2, 300:2, 31:0, 32:2, 33:1, 34:2,35:2, 36:3
     }
     return relacion[hoja]
+
+
+# Funcion que detecta automaticamente los campos generales previos a los datos horarios
+def __get_index_h_inteligent(datos):
+    """
+    Funcion que detecta automaticamente los campos generales
+    previos a los datos horarios, basandose en una serie de campos bisagra.
+    Devuelve como resultado una lista con el índice.
+
+    Parameters
+    ----------
+    datos : pd.DataFrame
+        DataFrame de pandas con los datos a tratar.
+
+    Returns
+    ------
+    index : list
+        lista con el nombre de las cloumnas del encabezado
+    """
+
+    # Inicializamos las variables
+    index = []
+    k = 0
+
+    # Identificamos el nombre de los campos visagra
+    columnas_a_eliminar = ['Hora', 'Cuarto de Hora del dia', 'Total', 'Total MW',
+                           'Total MWh', 'PMP €/MWh', 'Precio Marginal Cuartohorario €/MWh']
+
+    # Se genera una lista con valores booleanos correspondiente a cada campo, siendo "True"
+    # si corresponden a un campo bisagra, y "False" en caso contrario
+    iterador = [elemento in columnas_a_eliminar for elemento in datos.columns]
+
+    # Se itera sobre la lista booleana, identificando los valores previos a la bisagra
+    for i in iterador:
+        if not i:
+            index.append(datos.columns[k])
+        else:
+            break
+        k = k + 1
+
+    return index
 
 
 # Funcion que devuelve una lista con los nombre del encabezado de cada hoja del fichero i90
@@ -81,11 +128,8 @@ def __get_index_h(hoja):
         12: ['Unidad de Programación'],
         13: ['Sentido', 'Unidad de Programación', 'Bloque', 'Nº Oferta', 'Tipo Oferta', 'Divisibilidad', 'Indicadores'],
         14: ['Sentido', 'Unidad de Programación', 'Bloque', 'Tipo Oferta', 'Divisibilidad', 'Indicadores'],
-        144: ['Sesión', 'Sentido', 'Unidad de Programación', 'Bloque', 'Nº Oferta', 'Tipo Oferta', 'Divisibilidad', 'Rampa Maxima Subir', 'Rampa Maxima Bajar', 'Indicadores'],
         15: ['Sentido', 'Unidad de Programación', 'Bloque', 'Tipo Oferta', 'Indicadores'],
-        16: ['Unidad Fisica'],
         17: ['Sentido', 'Unidad de Programación', 'Bloque', 'Tipo Oferta', 'Precedencia', 'Indicadores'],
-        18: ['Unidad de Programación'],
         19: ['Unidad de Programación', 'Tipo Oferta'],
         20: ['Unidad de Programación', 'Tipo Oferta'],
         21: ['Unidad de Programación', 'Tipo Oferta'],
@@ -96,13 +140,11 @@ def __get_index_h(hoja):
         26: ['Unidad de Programación', 'Tipo Oferta', 'Tipo Transacción'],
         27: ['Unidad de Programación', 'Tipo Oferta', 'Nº contrato'],
         28: ['Unidad de Programación', 'Sentido', 'Nm Oferta asignada', 'Tipo Oferta', 'Origen'],
-        29: ['Unidad de Programación'],
         299: ['Unidad de Programación', 'Nm Oferta asignada', 'Tipo Oferta'],
         30: ['Redespacho', 'Tipo Redespacho', 'Sentido', 'Tipo QH', 'Indicadores'],
         300: ['Unidad de Programación', 'Bloque', 'Nº Oferta', 'Tipo Oferta', 'Divisibilidad', 'Indicadores'],
         31: [],
         32: ['Sentido', 'Unidad de Programación', 'Bloque', 'Tipo Oferta', 'Indicadores'],
-        33: ['Unidad de Programación'],
         34: ['Unidad de Programación', 'Sentido', 'Tipo Restricción'],
         35: ['Unidad de Programación', 'Sentido', 'Tipo Restricción', 'Oferta Compleja'],
         36: ['Unidad de Programación', 'Tipo Oferta']
@@ -144,7 +186,6 @@ def __get_index_d(hoja):
         12: ['Unidad de Programación'],
         13: ['Unidad de Programación'],
         14: ['Unidad de Programación'],
-        144: ['Unidad de Programación'],
         15: ['Unidad de Programación'],
         16: ['Unidad Fisica'],
         17: ['Unidad de Programación'],
@@ -344,7 +385,7 @@ def __reajustar_columnas(fichero, datos, hoja, indiceh):
     datos.iloc[0] = datos.iloc[0].fillna(0)
 
     # Reajustamos las columnas dobles cuando se dan
-    if hoja in [13, 14, 144, 15, 17, 300, 32]:
+    if hoja in [13, 14, 15, 17, 300, 32]:
         datos = datos.rename(columns={'Divisibilad': 'Divisibilidad', 'MW': 'MW.0', '€/MW': '€/MW.0', 'MWh': 'MWh.0', '€/MWh': '€/MWh.0'})
         melted_df = pd.melt(datos, id_vars=indiceh, var_name='Grupo_y_Periodo', value_name='Valor')
         melted_df[['Grupo', 'Periodo']] = melted_df['Grupo_y_Periodo'].str.split('.', expand=True)
@@ -384,7 +425,7 @@ def __reajustar_filas(datos, hoja, indiceh):
     return datos
 
 
-def __formatear_datos_diarios(datos, hoja, fecha, indiced):
+def __formatear_datos_diarios(datos, hoja, fecha):
     """
 
     :param datos:
@@ -439,19 +480,16 @@ def leer_i90_dia(fichero, hoja):
     # Establecemos exclusiones segun fecha
     hoja_ori = hoja
     if fecha < FECHA1:
-        hoja = 144 if hoja == 14 else hoja
         hoja = 300 if hoja == 30 else hoja
         hoja = 299 if hoja == 29 else hoja
         if hoja in [4, 31, 36, 11]:
             return pd.DataFrame(), pd.DataFrame()
     elif fecha < FECHA2:
-        hoja = 144 if hoja == 14 else hoja
         hoja = 300 if hoja == 30 else hoja
         hoja = 299 if hoja == 29 else hoja
         if hoja in [4, 31, 11]:
             return pd.DataFrame(), pd.DataFrame()
     elif fecha < FECHA3:
-        hoja = 144 if hoja == 14 else hoja
         if hoja in [4, 31, 11, 29, 30]:
             return pd.DataFrame(), pd.DataFrame()
     elif fecha < FECHA4:
@@ -478,7 +516,7 @@ def leer_i90_dia(fichero, hoja):
     # Rescatamos el indice
     indiced = __get_index_d(hoja)
     # logger.debug("indiced: " + "; ".join(indiced))
-    indiceh = __get_index_h(hoja)
+    indiceh = __get_index_h_inteligent(datos)
     # logger.debug("indiceh: " + "; ".join(indiceh))
 
     # Reajustamos las columnas necesarias
@@ -498,7 +536,7 @@ def leer_i90_dia(fichero, hoja):
         # logger.debug(datos)
 
     # Creamos los datos diarios
-    datos_diarios = __formatear_datos_diarios(datos, hoja, fecha, indiced)
+    datos_diarios = __formatear_datos_diarios(datos, hoja, fecha)
     # logger.debug(datos_diarios)
 
     # Creo el dataframe de datos por periodo
@@ -512,23 +550,11 @@ def leer_i90_dia(fichero, hoja):
     else:
         datos_diarios['parametro'] = ""
         datos_diarios['valor'] = ""
-    datos_diarios = datos_diarios.dropna(axis=0, subset=['valor'])  # Eliminamos las filas con NAN
 
+    datos_diarios = datos_diarios.dropna(axis=0, subset=['valor'])  # Eliminamos las filas con NAN
     datos_diarios = datos_diarios.rename(
         columns={'Unidad de Programación': 'upuf', 'Unidad Física': 'upuf', 'Unidad Fisica': 'upuf'})
     if hoja in [11, 30]:  # añado la up vacia en las hojas que no tienen up
         datos_diarios['upuf'] = ""
 
     return datos_diarios, datos_periodo
-
-
-
-# Otras notas
-"""
-# OK Problema de compatibilidad antiguo nuevo en el 11 -> Ahora precios de RR, antes reservada. A PARTIR DEL 07/11/2020 incluido
-# OK Problema de compatibilidad antiguo nuevo en el 14 -> Antes habia sesion, numero de oferta, rampa maxima subir, rampa maxima bajar, ahora no aparecen esos campos. A PARTIR DEL 07/11/2020 incluido
-# OK Problema de compatibilidad antiguo nuevo en el 22, 23, 24, 25-> Al eliminarse los intras 4-7 quedan sin datos. A PARTIR DEL 14/06/2024
-# OK Problema de compatibilidad antiguo nuevo en el 29 -> Antes resultado de RPAS, despues los cambiaron por los tiempos de arranque A PARTIR DEL 13/11/2019 reservada, a partir del 24/12/2020 tiempos de arranque
-# OK Problema de compatibilidad antiguo nuevo en el 30 -> Antes ofertas de RPAS, ahora precios terciaria. A PARTIR DEL 13/11/2019 reservada, a partir del 01/06/2021 precios terciaria
-# OK Problema de compatibilidad antiguo nuevo en el 36 -> Antes no existia. A PARTIR DEL 13/06/2018
-"""

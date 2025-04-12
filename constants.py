@@ -33,10 +33,11 @@ DBTBDIARIOS = 'tb_i90_diario'
 DBTBHORARIOS = 'tb_i90_horario'
 FECHA1 = dt(2018, 6, 13)
 FECHA2 = dt(2019, 11, 13)
-FECHA3 = dt(2020, 11, 7)
+FECHA3 = dt(2020, 10, 7)
 FECHA4 = dt(2020, 12, 24)
 FECHA5 = dt(2021, 6, 1)
 FECHA6 = dt(2024, 6, 14)
+
 
 # Mensajes de error
 ERROR_JOB_SIN_DATOS = ("La funcion esios.solicitar_decarga() no ha devuelto datos. " +
