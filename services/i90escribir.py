@@ -4,7 +4,7 @@ import shutil
 from services.db_pq_handler import escribir_datos_diarios
 from services.db_pq_handler import escribir_datos_periodo
 from services.logger import logger
-from services.i90extrae import leer_i90_dia
+from services.i90extraer import leer_i90_dia
 
 
 def insertar_datos_pq():
@@ -50,3 +50,8 @@ def insertar_datos_excel():
             datos_diarios.to_excel("../i90tratadodia/" + f + "_hoja" + str(h) + "_diario.xlsx")
             datos_periodo.to_excel("../i90tratadoperiodo/" + f + "_hoja" + str(h) + "_periodo.xlsx")
         shutil.move(f1, "../ficherosi90/leidos/" + f)
+
+
+def insertar_datos_sql():
+    """"""
+
